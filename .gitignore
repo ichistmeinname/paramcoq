@@ -1,0 +1,6 @@
+Makefile.coq
+*.cm*
+*.ml*
+*.a
+*.o
+*.DS_Store
