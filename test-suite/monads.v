@@ -29,32 +29,32 @@ Section MonadClass.
     bind (unit x) f = f x
 }.
 
-Section MonadClass.
+End MonadClass.
 
 
 Section MaybeMonad.
 
   Inductive option (A : Type) :=
-  | Some : A -> option A
-  | None : option A.
+  | some : A -> option A
+  | none : option A.
 
   (* Without Implicit Arguments *)
 
-  (* Definition ret {A: Type} (x : A) := Some A x. *)
+  (* Definition ret {A: Type} (x : A) := some A x. *)
   (* Definition bind {A B : Type} (a : option A) (f: A -> option B) : option B := *)
   (*   match a with *)
-  (*     | Some _ x => f x *)
-  (*     | None _ => None B *)
+  (*     | some _ x => f x *)
+  (*     | none _ => none B *)
   (*   end. *)
 
-  Arguments Some {A} _.
-  Arguments None {A}.
+  Arguments some {A} _.
+  Arguments none {A}.
 
-  Definition option_ret {A: Type} (x : A) := Some x.
+  Definition option_ret {A: Type} (x : A) := some x.
   Definition option_bind {A B : Type} (a : option A) (f: A -> option B) : option B :=
     match a with
-      | Some x => f x
-      | None => None
+      | some x => f x
+      | none => none
     end.
 
   Lemma option_left_identity :
@@ -86,7 +86,9 @@ Section MaybeMonad.
       bind_assoc := option_associativity;
       left_unit := option_left_identity;
       right_unit := option_right_identity
-    }. 
+    }.
+
+  Print option_monad.
 
 End MaybeMonad.
 
@@ -162,31 +164,90 @@ Qed.
       bind_assoc := list_associativity;
       left_unit := list_left_identity;
       right_unit := list_right_identity
-    }. 
+    }.
   
 End ListMonad.
 
 Section MonadAction.
 
+  Parametricity list.
+  Print list_R.
+(*   Inductive *)
+(* list_R (A₁ A₂ : Type) (A_R : A₁ -> A₂ -> Type) *)
+(*   : list A₁ -> list A₂ -> Type := *)
+(*     nil_R : list_R A_R nil nil *)
+(*   | cons_R : forall (H : A₁) (H0 : A₂), *)
+(*              A_R H H0 -> *)
+(*              forall (H1 : list A₁) (H2 : list A₂), *)
+(*              list_R A_R H1 H2 -> list_R A_R (H :: H1) (H0 :: H2) *)
 
-  (* Definition in_relation (A B : Type) := forall (x : A) (y : B), Prop. *)
+(* For list_R: Arguments A₁, A₂ are implicit *)
+(* For nil_R: Arguments A₁, A₂ are implicit *)
+(* For cons_R: Arguments A₁, A₂, A_R, H1, H2 are implicit *)
+(* For list_R: Argument scopes are [type_scope type_scope _ list_scope *)
+(*               list_scope] *)
+(* For nil_R: Argument scopes are [type_scope type_scope _] *)
+(* For cons_R: Argument scopes are [type_scope type_scope _ _ _ _ list_scope *)
+(*               list_scope _] *)
 
-  (* Inductive Rel : Type := *)
-  (*   | EmbedRel : forall S T, in_relation S T -> Rel. *)
+  Parametricity option.
+  Print option_R.
+(*   Inductive *)
+(* option_R (A₁ A₂ : Type) (A_R : A₁ -> A₂ -> Type) *)
+(*   : option A₁ -> option A₂ -> Type := *)
+(*     some_R : forall (H : A₁) (H0 : A₂), *)
+(*              A_R H H0 -> option_R A_R (some H) (some H0) *)
+(*   | none_R : option_R A_R (none A₁) (none A₂) *)
 
-  (* Definition full_relation {A B} (t1 : A) (t2 : B) := True. *)
-  (* Print Monad. *)
-  (* Definition function_relation {A B M1 M2} *)
-  (*            (Rel : A -> B -> Prop) (t1 : A -> Monad (M1 A)) (t2 : B -> Monad (M2 B)) *)
-  (*            : Prop := forall x y, Rel x y -> full_relation (t1 x) (t2 y). *)
-  (* Definition F {A B : Set} (R : Type) (k1 : A) (k2 : B) : Type := *)
-  (*  forall Tau1 Tau2, (Parametricity R) /\ R_R Tau1 Tau2.  *)
-  (* Definition Monad_Action {A B X Y} (k1 : Monad A) (k2 : Monad B) : Type := *)
-  (*   function_relation full_relation (unit : X -> k1) (unit). *)
+(* For option_R: Arguments A₁, A₂ are implicit *)
+(* For some_R: Arguments A₁, A₂ are implicit *)
+(* For none_R: Arguments A₁, A₂ are implicit *)
+(* For option_R: Argument scopes are [type_scope type_scope _ _ _] *)
+(* For some_R: Argument scopes are [type_scope type_scope _ _ _ _] *)
+(* For none_R: Argument scopes are [type_scope type_scope _] *)
 
-  (* Print full_relation. *)
-  (* Definition Maybe_List_FR {A B} (R : A -> B -> Prop) := *)
-  (*   full_relation (None A) (nil : list B) /\ *)
-  (*   function_relation R (fun x => Some x) (fun z => cons z nil). *)
+
+  Inductive maybe_list_R (A1 B1 : Type) (AB_R : A1 -> B1 -> Type)
+  : option A1 -> list B1 -> Type :=
+    Nothing_Nil_R : maybe_list_R AB_R (none A1) nil
+  | Just_Cons_R : forall (H : A1) (H0 : B1), AB_R H H0 -> maybe_list_R AB_R (some H) (cons H0 nil).
+
+  Definition test {m : Type -> Type} {M : Monad m} {A : Type} : A -> m A := fun x => unit x.
+  
+  Definition Functional {m1 m2 : Type -> Type} {M1 : Monad m1} {M2 : Monad m2} 
+             (A B : Type) := (A -> B -> Type) -> m1 A -> m2 B -> Type.
+  Print Functional.
+
+  Print bind.
+
+  Definition test2 {m : Type -> Type} {M : Monad m} {A B : Type}
+  : m A -> (A -> m B) -> m B := fun mx f => bind B mx f.
+
+  Definition func {A B : Type} := A -> B.
+  Parametricity func.
+  Print func_R.
+
+(*   func_R =  *)
+(* fun (A₁ A₂ : Type) (A_R : A₁ -> A₂ -> Type) (B₁ B₂ : Type) *)
+(*   (B_R : B₁ -> B₂ -> Type) (H : A₁ -> B₁) (H0 : A₂ -> B₂) => *)
+(* forall (H1 : A₁) (H2 : A₂), A_R H1 H2 -> B_R (H H1) (H0 H2) *)
+(*      : forall A₁ A₂ : Type, *)
+(*        (A₁ -> A₂ -> Type) -> *)
+(*        forall B₁ B₂ : Type, (B₁ -> B₂ -> Type) -> func -> func -> Type *)
+
+(* Arguments A₁, A₂, B₁, B₂ are implicit *)
+(* Argument scopes are [type_scope type_scope _ type_scope type_scope _ _ _] *)
+  
+
+  Definition Monad_Action_Return {m1 m2 : Type -> Type} {A B : Type}
+             {M1 : Monad m1} {M2 : Monad m2} (MA_R : Functional A B) :=
+    forall (R: A -> B -> Type) (x : A) (y : B), MA_R R (unit x) (unit y).
+
+  Definition Monad_Action_Bind  {m1 m2 : Type -> Type} {M1 : Monad m1} {M2 : Monad m2}
+             {A1 B1 A2 B2 : Type}
+             (MA_R : Functional A1 A2) (MA_S : Functional B1 B2)
+    (f : A1 -> m1 B1) (g : A2 -> m2 B2) :=
+  forall (R : A1 -> A2 -> Type) (S : B1 -> B2 -> Type) (x : B1) (my : m2 B2),
+    MA_S S (unit x) (bind B2 my g).
   
 End MonadAction.
