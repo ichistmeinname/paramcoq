@@ -214,7 +214,7 @@ Section MonadAction.
 
   Definition test {m : Type -> Type} {M : Monad m} {A : Type} : A -> m A := fun x => unit x.
   
-  Definition Functional {m1 m2 : Type -> Type} {M1 : Monad m1} {M2 : Monad m2} 
+  Definition Functional (m1 m2 : Type -> Type) (M1 : Monad m1) (M2 : Monad m2)
              (A B : Type) := (A -> B -> Type) -> m1 A -> m2 B -> Type.
   Print Functional.
 
@@ -227,27 +227,99 @@ Section MonadAction.
   Parametricity func.
   Print func_R.
 
-(*   func_R =  *)
-(* fun (A₁ A₂ : Type) (A_R : A₁ -> A₂ -> Type) (B₁ B₂ : Type) *)
-(*   (B_R : B₁ -> B₂ -> Type) (H : A₁ -> B₁) (H0 : A₂ -> B₂) => *)
-(* forall (H1 : A₁) (H2 : A₂), A_R H1 H2 -> B_R (H H1) (H0 H2) *)
-(*      : forall A₁ A₂ : Type, *)
-(*        (A₁ -> A₂ -> Type) -> *)
-(*        forall B₁ B₂ : Type, (B₁ -> B₂ -> Type) -> func -> func -> Type *)
+  (*   func_R =  *)
+  (* fun (A₁ A₂ : Type) (A_R : A₁ -> A₂ -> Type) (B₁ B₂ : Type) *)
+  (*   (B_R : B₁ -> B₂ -> Type) (H : A₁ -> B₁) (H0 : A₂ -> B₂) => *)
+  (* forall (H1 : A₁) (H2 : A₂), A_R H1 H2 -> B_R (H H1) (H0 H2) *)
+  (*      : forall A₁ A₂ : Type, *)
+  (*        (A₁ -> A₂ -> Type) -> *)
+  (*        forall B₁ B₂ : Type, (B₁ -> B₂ -> Type) -> func -> func -> Type *)
 
-(* Arguments A₁, A₂, B₁, B₂ are implicit *)
-(* Argument scopes are [type_scope type_scope _ type_scope type_scope _ _ _] *)
+  (* Arguments A₁, A₂, B₁, B₂ are implicit *)
+  (* Argument scopes are [type_scope type_scope _ type_scope type_scope _ _ _] *)
   
-
   Definition Monad_Action_Return {m1 m2 : Type -> Type} {A B : Type}
-             {M1 : Monad m1} {M2 : Monad m2} (MA_R : Functional A B) :=
-    forall (R: A -> B -> Type) (x : A) (y : B), MA_R R (unit x) (unit y).
+             {M1 : Monad m1} {M2 : Monad m2} (MA_R : Functional M1 M2 A B) :=
+    forall (R: A -> B -> Type) (x : A) (y : B), MA_R R (unit x) (unit y).  
 
-  Definition Monad_Action_Bind  {m1 m2 : Type -> Type} {M1 : Monad m1} {M2 : Monad m2}
+
+  Print bind.
+  Check Functional.
+  Definition Monad_Action_Bind {m1 m2 : Type -> Type} {M1 : Monad m1} {M2 : Monad m2}
              {A1 B1 A2 B2 : Type}
-             (MA_R : Functional A1 A2) (MA_S : Functional B1 B2)
+             (MA_R : Functional M1 M2 A1 A2) (MA_S : Functional M1 M2 B1 B2)
     (f : A1 -> m1 B1) (g : A2 -> m2 B2) :=
-  forall (R : A1 -> A2 -> Type) (S : B1 -> B2 -> Type) (x : B1) (my : m2 B2),
-    MA_S S (unit x) (bind B2 my g).
+    forall (R : A1 -> A2 -> Type) (S : B1 -> B2 -> Type) (mx : m1 A1) (my : m2 A2),
+      MA_R R mx my -> MA_S S (bind B1 mx f) (bind B2 my g).
+
+  
+  (* Inductive Monad_Action {m1 m2 : Type -> Type} {M1 : Monad m1} {M2 : Monad m2} *)
+  (*           {A1 B1 A2 B2 : Type} *)
+  (*           (MA_R : Functional M1 M2 A1 A2) : m1 B1 -> m2 B2 -> Type := *)
+  (*   MA_Return : forall (R: B1 -> B2 -> Type) (x : B1) (y : B2), *)
+  (*                 R x y -> Monad_Action MA_R (unit x) (unit y) *)
+  (* | MA_Bind : forall (R : A1 -> A2 -> Type) (mx : m1 A1) (my : m2 A2) *)
+  (*               (f : A1 -> m1 B1) (g : A2 -> m2 B2), *)
+  (*               MA_R R mx my -> Monad_Action MA_R (bind B1 mx f) (bind B2 my g). *)
+
+  Definition T := forall X Y, list X -> list Y.
+  Definition TF := forall X Y, (X -> Y) -> list X -> list Y.
+
+  Parametricity TF.
+  Parametricity T.
+  Print T_R.
+  Print TF_R.
+
+  Definition FREE_THEOREM (F : TF) := forall
+     T1 T2 T3 T4
+     (g : T1 -> T2) (h : T3 -> T4)
+     (p : T1 -> T3) (q : T2 -> T4),
+      (forall x, h (p x) = q (g x)) ->
+           forall l, F T2 T4 q (map g l) = map h (F T1 T3 p l).
+  (* Lemma test : *)
+  (*   forall T1 T2 T3 T4 (g : T1 -> T2) (h : T3 -> T4) (p : T1 -> T3) (q : T2 -> T4), (forall (x : T1), h (p x) = q (g x)) -> forall H H0, (graph g H H0 -> graph h (p H) (q H0)). *)
+  (* Proof. *)
+  (*   repeat intro. *)
+  (*   unfold graph in H2; symmetry in H2. *)
+  (*   rewrite H2. *)
+  (*   unfold graph. *)
+  (*   specialize (H H0). *)
+  (*   assumption. *)
+  (* Qed. *)
+
+Lemma param_MAP_naturality :
+  forall F (F_R : TF_R F F), FREE_THEOREM F.
+
+  Inductive t_i (A : Type) :=
+    t_1 : A -> t_i A
+  | t_2 : forall B, t_i B -> (B -> t_i A) -> t_i A.
+  Parametricity t_i.
+  Print t_i_R.
+   (* Print list_R. *)
+
+  Definition Monad_Action {m1 m2 : Type -> Type} (M1 : Monad m1) (M2 : Monad m2) := 
+            forall (H H0 : Type), (H -> H0 -> Type) -> m1 H -> m2 H0 -> Type.
+
+  Inductive monad_R {m1 m2 : Type -> Type} {M1 : Monad m1} {M2 : Monad m2} :
+            forall H H0 : Type, (H -> H0 -> Type) -> m1 H -> m2 H0 -> Type :=
+    unit_R : forall (A1 A2 : Type) (A_R : A1 -> A2 -> Type) (x : A1) (y : A2),
+               A_R x y -> monad_R A_R (unit x) (unit y)
+  | bind_R : forall (A1 A2 : Type) (A_R : A1 -> A2 -> Type)
+               (B1 B2 : Type) (B_R : B1 -> B2 -> Type)
+               (mx : m1 A1) (my : m2 A2),
+               monad_R A_R mx my -> forall (f : A1 -> m1 B1) (g : A2 -> m2 B2),
+                                     (forall (x : A1) (y : A2),
+                                        A_R x y -> monad_R B_R (f x) (g y)) ->
+                                     monad_R B_R (bind B1 mx f) (bind B2 my g).
+
+  Print Monad_Action.
+  Definition F_T {M1 : Monad list} {M2 : Monad option}
+             (F : Monad_Action M1 M2) :=
+    forall A B (x : A) (y : B)
+      (A_R : A -> B -> Type),
+      A_R x y -> F A B A_R nil (none B) = F A B A_R (cons x nil) (some y).
+
+  Lemma param_list_maybe_naturality :
+    forall A B F (A_R : list A -> option B -> Type) (F_R : monad_R A_R F F), F_T F.
   
 End MonadAction.
