@@ -13,7 +13,7 @@ Definition flip {A B C} (f : A -> B -> C) x y : C := f y x.
 Print flip.
 
 Section MonadClass.
-
+  
   Class Monad (M : Type -> Type) := {
   bind : forall A B,
     M A -> (A -> M B) -> M B;
@@ -270,25 +270,24 @@ Section MonadAction.
   Print T_R.
   Print TF_R.
 
+(*   TF_R =  *)
+(* fun H H0 : forall X Y : Type, (X -> Y) -> list X -> list Y => *)
+(* forall (X₁ X₂ : Type) (X_R : X₁ -> X₂ -> Type) (Y₁ Y₂ : Type) *)
+(*   (Y_R : Y₁ -> Y₂ -> Type) (H1 : X₁ -> Y₁) (H2 : X₂ -> Y₂), *)
+(* (forall (H3 : X₁) (H4 : X₂), X_R H3 H4 -> Y_R (H1 H3) (H2 H4)) -> *)
+(* forall (H3 : list X₁) (H4 : list X₂), *)
+(* list_R X_R H3 H4 -> list_R Y_R (H X₁ Y₁ H1 H3) (H0 X₂ Y₂ H2 H4) *)
+  (*      : TF -> TF -> Type *)
+
   Definition FREE_THEOREM (F : TF) := forall
      T1 T2 T3 T4
      (g : T1 -> T2) (h : T3 -> T4)
      (p : T1 -> T3) (q : T2 -> T4),
       (forall x, h (p x) = q (g x)) ->
            forall l, F T2 T4 q (map g l) = map h (F T1 T3 p l).
-  (* Lemma test : *)
-  (*   forall T1 T2 T3 T4 (g : T1 -> T2) (h : T3 -> T4) (p : T1 -> T3) (q : T2 -> T4), (forall (x : T1), h (p x) = q (g x)) -> forall H H0, (graph g H H0 -> graph h (p H) (q H0)). *)
-  (* Proof. *)
-  (*   repeat intro. *)
-  (*   unfold graph in H2; symmetry in H2. *)
-  (*   rewrite H2. *)
-  (*   unfold graph. *)
-  (*   specialize (H H0). *)
-  (*   assumption. *)
-  (* Qed. *)
 
-Lemma param_MAP_naturality :
-  forall F (F_R : TF_R F F), FREE_THEOREM F.
+(* Lemma param_MAP_naturality : *)
+(*   forall F (F_R : TF_R F F), FREE_THEOREM F. *)
 
   Inductive t_i (A : Type) :=
     t_1 : A -> t_i A
@@ -296,12 +295,13 @@ Lemma param_MAP_naturality :
   Parametricity t_i.
   Print t_i_R.
    (* Print list_R. *)
-
-  Definition Monad_Action {m1 m2 : Type -> Type} (M1 : Monad m1) (M2 : Monad m2) := 
+ 
+  Definition Monad_Action {m1 m2 : Type -> Type} (M1 : Monad m1) (M2 : Monad m2) :=
             forall (H H0 : Type), (H -> H0 -> Type) -> m1 H -> m2 H0 -> Type.
 
   Inductive monad_R {m1 m2 : Type -> Type} {M1 : Monad m1} {M2 : Monad m2} :
-            forall H H0 : Type, (H -> H0 -> Type) -> m1 H -> m2 H0 -> Type :=
+    Monad_Action M1 M2
+            (* forall H H0 : Type, (H -> H0 -> Type) -> m1 H -> m2 H0 -> Type *) :=
     unit_R : forall (A1 A2 : Type) (A_R : A1 -> A2 -> Type) (x : A1) (y : A2),
                A_R x y -> monad_R A_R (unit x) (unit y)
   | bind_R : forall (A1 A2 : Type) (A_R : A1 -> A2 -> Type)
@@ -312,7 +312,6 @@ Lemma param_MAP_naturality :
                                         A_R x y -> monad_R B_R (f x) (g y)) ->
                                      monad_R B_R (bind B1 mx f) (bind B2 my g).
 
-  Print Monad_Action.
   Definition F_T {M1 : Monad list} {M2 : Monad option}
              (F : Monad_Action M1 M2) :=
     forall A B (x : A) (y : B)
@@ -320,6 +319,6 @@ Lemma param_MAP_naturality :
       A_R x y -> F A B A_R nil (none B) = F A B A_R (cons x nil) (some y).
 
   Lemma param_list_maybe_naturality :
-    forall A B F (A_R : list A -> option B -> Type) (F_R : monad_R A_R F F), F_T F.
+    forall A B F (A_R : list A -> option B -> Type) (F_R : monad_R A_R F F), F_T (F list option).
   
 End MonadAction.
